@@ -14,11 +14,13 @@ const getMessageHistory = async (req, res) => {
         res.json({
             success: true,
             messages: messages.map(msg => ({
-                msg: msg.content,
+                _id: msg._id,
+                msg: msg.msg,
                 sender: msg.sender,
                 roomId: msg.roomId,
                 timestamp: new Date(msg.timestamp).getTime(),
                 seen: msg.seen || false,
+                reactions: msg.reactions || []
             })),
         });
     } catch (error) {
