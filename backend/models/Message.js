@@ -17,7 +17,7 @@ const messageSchema = new mongoose.Schema({
         index: true,
     },
     timestamp: {
-        type: Number, // Date-ის ნაცვლად Number (Date.now()) უფრო ზუსტია სორტირებისთვის JS-ში
+        type: Number, 
         default: Date.now,
         index: true, 
     },
@@ -30,13 +30,12 @@ const messageSchema = new mongoose.Schema({
     ]
 });
 
-// ეს უზრუნველყოფს, რომ როცა მესიჯს სოკეტზე აგზავნი, _id იყოს string და არა Object
 messageSchema.set('toJSON', {
     virtuals: true,
     versionKey: false,
     transform: function (doc, ret) {
-        delete ret._id; // _id-ს შლის, რადგან id (virtual) უკვე აქვს, ან დატოვე როგორც გინდა
-        ret._id = ret.id; // ან პირიქით, _id გახდეს string
+        delete ret._id;
+        ret._id = ret.id; 
     }
 });
 
