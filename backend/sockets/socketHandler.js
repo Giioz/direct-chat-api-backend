@@ -5,15 +5,14 @@ const onlineUsers = new Map();
 
 module.exports = (io) => {
     io.on('connection', (socket) => {
-        
-        // 🟢 User Connected
+
         if (socket.username) {
             onlineUsers.set(socket.username, socket.id);
             console.log(`📡 ${socket.username} is online (ID: ${socket.id})`);
             io.emit("online users", Array.from(onlineUsers.keys()));
         }
 
-        // 1. TYPING
+        // Typing event
         socket.on("typing", (data) => {
             if (data.to) {
                 const recipientSocketId = onlineUsers.get(data.to);
@@ -25,35 +24,32 @@ module.exports = (io) => {
             }
         });
 
-        // 2. JOIN ROOM
+        // Join room
         socket.on("join room", (roomId) => {
             socket.join(roomId);
-            // console.log(`🚪 User ${socket.username} joined room: ${roomId}`);
             socket.emit("room joined", { roomId, success: true });
         });
 
-        // 3. CHAT MESSAGE (Updated for ID fix)
+        // Handle new message
         socket.on("chat message", async ({ roomId, msg, to }) => {
             try {
-                // 1. Create in DB
+                // Save to DB
                 const newMessage = await Message.create({
-                    msg: msg, 
+                    msg: msg,
                     sender: socket.username,
                     roomId,
                     timestamp: Date.now(),
                     seen: false,
-                    reactions: [] // თავიდან ცარიელია
+                    reactions: []
                 });
 
-                // 2. Convert to Plain Object & Convert ID to String
-                // ეს ძალიან მნიშვნელოვანია!
                 let messageData = newMessage.toObject();
-                messageData._id = messageData._id.toString(); 
+                messageData._id = messageData._id.toString();
 
-                // 3. Emit to Sockets
+                // Broadcast
                 if (to) {
                     const recipientSocketId = onlineUsers.get(to);
-                    
+
                     // Send to sender (update UI immediately with real ID)
                     socket.emit("chat message", messageData);
 
@@ -67,20 +63,20 @@ module.exports = (io) => {
                 }
 
             } catch (error) {
-                console.error('❌ Database save error:', error);
+                console.error('Database save error:', error);
             }
         });
 
-        // 4. MESSAGES READ
+        // Mark messages as read
         socket.on("messages_read", async ({ roomId, reader }) => {
             if (!reader) return;
             const to = roomId.split("_").find(u => u !== reader);
             if (!to) return;
-            
+
             const recipientSocketId = onlineUsers.get(to);
 
             try {
-                // მხოლოდ იმ მესიჯებს ვანახლებთ, რაც ჯერ არ წაკითხულა
+                // Update only unread messages
                 const updateResult = await Message.updateMany(
                     { roomId, sender: to, seen: false },
                     { $set: { seen: true } }
@@ -93,8 +89,8 @@ module.exports = (io) => {
                 console.error("Database Update Error (seen status):", err);
             }
         });
-        
-        // 5. REACTION EVENT (Logic Check)
+
+        // Message reactions
         socket.on("message_reaction", async ({ messageId, roomId, emoji, user }) => {
             try {
                 const message = await Message.findById(messageId);
@@ -117,9 +113,9 @@ module.exports = (io) => {
 
                 await message.save();
 
-                // ⚠️ Emit to everyone in the room (including sender)
+                // Emit to everyone in the room (including sender)
                 io.to(roomId).emit("message_reaction_update", {
-                    messageId: message._id.toString(), // Ensure String ID
+                    messageId: message._id.toString(),
                     reactions: message.reactions
                 });
 
@@ -128,12 +124,12 @@ module.exports = (io) => {
             }
         });
 
-        // 6. DISCONNECT
+        // Handle disconnect
         socket.on('disconnect', () => {
             if (socket.username) {
                 onlineUsers.delete(socket.username);
                 io.emit("online users", Array.from(onlineUsers.keys()));
-                
+
                 User.findOneAndUpdate(
                     { username: socket.username },
                     { lastSeen: new Date() }
