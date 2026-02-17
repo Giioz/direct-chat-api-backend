@@ -7,6 +7,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 const socketAuthMiddleware = require('./sockets/middleware');
 const socketHandler = require('./sockets/socketHandler');
 
@@ -21,8 +22,15 @@ connectDB();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
+// Attach io to req
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api', chatRoutes);
+app.use('/api/friends', friendRoutes);
 
 io.use(socketAuthMiddleware);
 socketHandler(io);

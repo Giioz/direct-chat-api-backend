@@ -8,6 +8,9 @@ module.exports = (io) => {
 
         if (socket.username) {
             onlineUsers.set(socket.username, socket.id);
+            // Join personal room for notifications
+            socket.join(socket.username);
+
             console.log(`📡 ${socket.username} is online (ID: ${socket.id})`);
             io.emit("online users", Array.from(onlineUsers.keys()));
         }
